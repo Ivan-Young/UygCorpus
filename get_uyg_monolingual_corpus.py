@@ -1,4 +1,5 @@
 import re
+import json
 from urllib import request
 from pyquery import PyQuery as pq
 from parallel_corpus_utils import parallel_corpus_info
@@ -13,6 +14,8 @@ headers = {
         }
 
 suffix_dict = {}
+# used for new indexes
+suffix_dict_temp = {}
 pattern1 = re.compile(r"/\d+/\d+.html")
 pattern2 = re.compile(r"/\S+\d/index.html")
 pattern3 = re.compile(r"\S+\d\S*")
@@ -58,15 +61,14 @@ def get_news_url(url_suffix):
                 if t is None:
                     continue
                 if re.match(pattern2, t) and t not in suffix_dict.keys():
-                    suffix_dict[t] = []
+                    suffix_dict_temp[t] = []
                 if re.match(pattern1, t):
                     l = '/' + t.split("/")[1] + '/index.html'
                     if l not in suffix_dict.keys():
-                        suffix_dict[l] = [t]
+                        suffix_dict_temp[l] = [t]
                     else:
                         if t not in suffix_dict[l]:
                             suffix_dict[l].append(t)
-        print(suffix_dict)
 
         return complete_suffixes
 
@@ -91,31 +93,54 @@ def check_suffixes(suffix):
         print("After: " + l)
         return l
 
+#use url to get the news.
+def get_news_contents(url):
+    try:
+        url = "http://uyghur.people.com.cn/155989/15747053.html"
+        req = request.Request(url, headers=headers)
+        page = request.urlopen(req).read()
+        doc = pq(page)
+        title = doc("#p_title").text()
+        contents = doc("#zoom").text()
+
+
+    except Exception as e:
+        print(e)
+
+
+#slice up the sentences to right length
+def slice_contents(contents, punctuations):
+    assert isinstance(contents, str)
+    assert isinstance(punctuations, list)
+    sentences_list = contents.split(".")
+    print(len(sentences_list))
+    for s in sentences_list:
+        if len(s.split(" ")) > 40:
+            for i in range(4):
+                # if s.find("i") in
+                continue
+
 
 def main():
     MAX_LEN, MIN_LEN, punctuations = parallel_corpus_info("./uy.txt")
-    get_url_suffixes()
-    for k in suffix_dict.keys():
-        get_news_url(k)
-    print(suffix_dict)
+    # get_url_suffixes()
+    # for k in suffix_dict.keys():
+    #     get_news_url(k)
+    # print(suffix_dict)
+    # with open("uy_url_suffixes.json", "w") as f:
+    #    f.write(json.dumps(suffix_dict))
+
+    with open("./uy_url_suffixes.json", "r") as f:
+        suffixes = json.loads(f.readline())
+    assert isinstance(suffixes, dict)
+    # for key, suffix_list in suffixes.items():
+    #     for suffix in suffix_list:
+    #         continue
+    get_news_contents("")
 
 
 
 
-
-    # try:
-    #     url = "http://uyghur.people.com.cn/155989/15747053.html"
-    #     req = request.Request(url, headers=headers)
-    #     page = request.urlopen(req).read()
-    #     doc = pq(page)
-    #     contents = doc("#zoom").text()
-    #
-    #     sentences_list = contents.split(".")
-    #     for s in sentences_list:
-    #         print(s)
-    #
-    # except Exception as e:
-    #     print(e)
 
     # f = open("./test.txt", "w")
     # f.write(contents)
