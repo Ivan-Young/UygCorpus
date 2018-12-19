@@ -3,18 +3,24 @@ from urllib import request
 from pyquery import PyQuery as pq
 from parallel_corpus_utils import parallel_corpus_info
 
+
+
 headers = {
-            "Host":"uyghur.people.com.cn",
-            "Cookie":"wdcid=62baa762b4832f8a; wdlast=1545032438; wdses=4169b7d11f9e8cf1",
-            "User-Agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0",
-            "Referer":"http://uyghur.people.com.cn/"
+            "Host": "uyghur.people.com.cn",
+            "Cookie": "wdcid=62baa762b4832f8a; wdlast=1545032438; wdses=4169b7d11f9e8cf1",
+            "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0",
+            "Referer": "http://uyghur.people.com.cn/"
         }
 
+suffix_dict = {}
+pattern1 = re.compile(r"/\d+/\d+.html")
+pattern2 = re.compile(r"/\S+\d/index.html")
+pattern3 = re.compile(r"\S+\d\S*")
 
-def get_urls():
+#get "/******/index.html"
+def get_url_suffixes():
     url_suffixes = []
     url = "http://uyghur.people.com.cn/"
-    count = 0
     try:
         req = request.Request(url, headers=headers)
         page = request.urlopen(req).read()
@@ -23,26 +29,75 @@ def get_urls():
         for i in range(len(tag_li_s)):
             for j in range(len(tag_li_s.eq(i).children())):
                 suffix = tag_li_s.eq(i).children().eq(j).attr("href")
-                print(suffix)
-
-
-
+                temp = check_suffixes(suffix)
+                if temp and temp not in url_suffixes:
+                    url_suffixes.append(temp)
+        url_suffixes.append("/311301/311302/index.html")
+        print(url_suffixes)
+        for suff in url_suffixes:
+            suffix_dict[suff] = []
+        return url_suffixes
 
     except Exception as e:
         print(e)
 
 
+#input "/******.index", get "/******/******.html"
+def get_news_url(url_suffix):
+    url = "http://uyghur.people.com.cn" + url_suffix
+    other_suffix = []
+    complete_suffixes = []
+    try:
+        req = request.Request(url, headers=headers)
+        page = request.urlopen(req).read()
+        doc = pq(page)
+        tag_li_s = doc("ul li")
+        for i in range(len(tag_li_s)):
+            for j in range(len(tag_li_s.eq(i).children())):
+                t = tag_li_s.eq(i).children().eq(j).attr("href")
+                if t is None:
+                    continue
+                if re.match(pattern2, t) and t not in suffix_dict.keys():
+                    suffix_dict[t] = []
+                if re.match(pattern1, t):
+                    l = '/' + t.split("/")[1] + '/index.html'
+                    if l not in suffix_dict.keys():
+                        suffix_dict[l] = [t]
+                    else:
+                        if t not in suffix_dict[l]:
+                            suffix_dict[l].append(t)
+        print(suffix_dict)
+
+        return complete_suffixes
+
+    except Exception as e:
+        print(e)
 
 
-
-
+#check
+def check_suffixes(suffix):
+    if not suffix:
+        print("Before: " + "None")
+    else:
+        print("Before: " + suffix)
+    if not suffix or len(suffix) > 30 or not re.match(pattern3, suffix):
+        print("After: " + "None")
+        return None
+    if re.match(pattern2, suffix):
+        print("After: " + suffix)
+        return suffix
+    if re.match(pattern1, suffix):
+        l = '/' + suffix.split("/")[1] + '/index.html'
+        print("After: " + l)
+        return l
 
 
 def main():
-    # MAX_LEN, MIN_LEN, punctuations = parallel_corpus_info("./uy.txt")
-
-    get_urls()
-
+    MAX_LEN, MIN_LEN, punctuations = parallel_corpus_info("./uy.txt")
+    get_url_suffixes()
+    for k in suffix_dict.keys():
+        get_news_url(k)
+    print(suffix_dict)
 
 
 
